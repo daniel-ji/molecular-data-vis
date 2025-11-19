@@ -1,5 +1,6 @@
 import { React, Component, Fragment } from 'react'
 
+import axios from 'axios';
 import { DateTime } from 'luxon';
 
 import { MAX_THRESHOLD, MAX_INDIVIDUAL_CATEGORIES, READ_FILE_ASYNC, LOG, CHUNK_SIZE, INVALID_PAIRWISE_FILE_TEXT, INVALID_DEMOGRAPHIC_FILE_TEXT, DATE_NA_VALUE, NUMBER_NA_VALUE, STRING_NA_VALUE } from '../../../constants'
@@ -55,6 +56,20 @@ export class UploadData extends Component {
 			})
 		}
 	}
+
+	loadExampleData = async () => {
+		this.setState({ uploadSuccess: false, uploadLoading: true, pairwiseDistanceInvalid: false, dataFileInvalid: false });
+		const pairwiseText = await (await axios.get("https://raw.githubusercontent.com/daniel-ji/molecular-data-vis/refs/heads/master/example_data/pairwise_reduced.tsv")).data;
+		const demoText = await (await axios.get("https://raw.githubusercontent.com/daniel-ji/molecular-data-vis/refs/heads/master/example_data/abm_hiv_demographic_data_with_zip.tsv")).data;
+
+		await this.handleDemoDataText(demoText, "\t", () => {
+			this.handlePairwiseDistancesText(new TextEncoder().encode(pairwiseText), "\t", () => {
+				this.props.updateDiagrams();
+				this.setState({ uploadSuccess: true, uploadLoading: false });
+			})
+		});
+	}
+
 
 	clickPairwiseFile = () => {
 		document.getElementById("upload-pairwise-file").value = "";
@@ -125,8 +140,11 @@ export class UploadData extends Component {
 
 		// read file and define delimiter 
 		const text = await READ_FILE_ASYNC(file, true)
-		const delimiter = file.name.endsWith(".csv") ? "," : "\t";
 
+		return this.handleDemoDataText(text, file.name.endsWith(".csv") ? "," : "\t", callback);
+	}
+
+	handleDemoDataText = (text, delimiter, callback) => {
 		const lines = text.replace(/\r\n/g, "\n").split("\n");
 		// first line is categories
 		const categories = lines[0].split(delimiter);
@@ -244,7 +262,7 @@ export class UploadData extends Component {
 		const demoCategoriesKeys = [...demoCategories.keys()];
 		for (let i = 0; i < demoCategoriesKeys.length; i++) {
 			const type = demoCategories.get(demoCategoriesKeys[i]).type;
-			
+
 			if (type === 'date' || type === 'number') {
 				const values = [...demoCategories.get(demoCategoriesKeys[i]).elements]
 				if (type === 'date') {
@@ -269,10 +287,6 @@ export class UploadData extends Component {
 	}
 
 	getPairwiseDistances = async (callback) => {
-		const allLinks = new Map();
-		const allNodes = new Map();
-		const allNodesArray = [];
-
 		const file = document.getElementById("upload-pairwise-file").files[0];
 		console.log("\n\n\n-------- READING FILE -------- \n\n\n")
 		LOG("Reading file...")
@@ -281,6 +295,13 @@ export class UploadData extends Component {
 		const delimiter = file.name.endsWith(".csv") ? "," : "\t";
 		LOG("Done reading file...")
 
+		return this.handlePairwiseDistancesText(array, delimiter, callback);
+	}
+
+	handlePairwiseDistancesText = (array, delimiter, callback) => {
+		const allLinks = new Map();
+		const allNodes = new Map();
+		const allNodesArray = [];
 		const decoder = new TextDecoder("utf-8");
 		// for when the chunk_size split doesn't match a full line
 		let splitString = "";
@@ -367,7 +388,7 @@ export class UploadData extends Component {
 					<div className="form-text" id="threshold-range-hint">Threshold Range: 0 to {MAX_THRESHOLD}</div>
 				</div>
 
-				<label htmlFor="upload-pairwise-file" className="form-label w-100 text-center">Upload pairwise distances
+				<label htmlFor="upload-pairwise-file" className="mt-5 form-label w-100 text-center">Upload pairwise distances
 					file: (.tsv, .csv, .txt)<i className="bi bi-asterisk text-danger"></i></label>
 				<input type="file" accept=".csv, .tsv, .txt" className={`form-control ${this.state.pairwiseDistanceInvalid && !this.state.pairwiseFile && "is-invalid"}`} id="upload-pairwise-file" onChange={this.updatePairwiseFile} onClick={this.clickPairwiseFile} />
 
@@ -379,8 +400,12 @@ export class UploadData extends Component {
 					</Fragment>
 				}
 
+
 				{this.state.pairwiseFile && <button id="read-file" className="btn btn-primary mt-3" onClick={this.readData}>Submit Files</button>}
 				{this.state.pairwiseDistanceInvalid && <div className="text-danger text-center mt-3">{INVALID_PAIRWISE_FILE_TEXT}</div>}
+
+				<button className="btn btn-warning mt-4 mb-3" onClick={() => { this.loadExampleData() }}>Load Example Data</button>
+
 				{this.state.uploadLoading &&
 					<p className="mt-3 mb-0 text-warning text-center">Loading...</p>
 				}

@@ -23,7 +23,7 @@ export class DiagramTabs extends Component {
 	render() {
 		return (
 			<div id="diagram-tabs">
-				{["Molecular Cluster Graph", "Cluster Summary Statistics", "Clusters By Zip", "Cluster Size Histogram", "Cluster Graph"].map((tab, index) => {
+				{["Molecular Cluster Graph", "Cluster Summary Statistics", "Clusters By Zip", "Cluster Size Histogram"].map((tab, index) => {
 					return (
 						<div className="diagram-tab" key={index} onClick={() => { this.props.setDiagramCounter(index) }}>
 							{tab}
